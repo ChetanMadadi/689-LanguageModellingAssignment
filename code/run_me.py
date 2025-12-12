@@ -595,6 +595,7 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
         max_steps_per_epoch=None,
         sample_every=4,
     )
+    best_per_arch = {}
 
     # ============================================================
     # Model family 1: Linear predictor
@@ -608,7 +609,7 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # best_lin_hist = None
     # best_lin_cfg = None
 
-    # best_per_arch = {}
+
 
     # for T in lin_Ts:
     #     cfg = TrainConfig(**{**asdict(base), "name": f"Linear_T{T}", "T": T})
