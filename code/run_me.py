@@ -401,7 +401,13 @@ def generate_chars(model, tokenizer: CharTokenizer, device: str, prompt: str, T:
     ids = tokenizer.encode(prompt)
     x = torch.tensor(ids, dtype=torch.long, device=device)[None, :]
     for _ in range(n_new):
-        x_cond = x[:, -T:] if x.size(1) > T else x
+        # Always feed exactly T tokens for models that require fixed T (e.g., MLP)
+        if x.size(1) >= T:
+            x_cond = x[:, -T:]
+        else:
+            pad_id = 0  # safe for CharTokenizer since 0 is a valid char id
+            pad = torch.full((1, T - x.size(1)), pad_id, dtype=torch.long, device=device)
+            x_cond = torch.cat([pad, x], dim=1)
         logits = model(x_cond)  # (1,t,V)
         last = logits[:, -1, :] / max(1e-8, temperature)
         probs = F.softmax(last, dim=-1)
@@ -655,73 +661,73 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     print("Best MLP hyperparams:", best_mlp_cfg)
     print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
 
-    # ============================================================
-    # Model family 3: Multi-head self-attention (single block)
-    # Required: test LL vs 3+ settings
-    # We vary number of heads; keep head_dim fixed.
-    # ============================================================
-    attn_heads = [1, 2, 4]
-    attn_test_ll = []
-    attn_flops = []
-    best_attn = None
-    best_attn_ll = -1e9
-    best_attn_cfg = None
+    # # ============================================================
+    # # Model family 3: Multi-head self-attention (single block)
+    # # Required: test LL vs 3+ settings
+    # # We vary number of heads; keep head_dim fixed.
+    # # ============================================================
+    # attn_heads = [1, 2, 4]
+    # attn_test_ll = []
+    # attn_flops = []
+    # best_attn = None
+    # best_attn_ll = -1e9
+    # best_attn_cfg = None
 
 
-    for nh in attn_heads:
-        cfg = TrainConfig(**{**asdict(base), "name": f"MHSA_heads{nh}", "T": T})
-        model = MHSAOneBlock(vocab_size=tok.vocab_size, T=T, d_model=128, n_heads=nh, head_dim=32, use_ffn=False)
-        fpf = flops_attention(tok.vocab_size, T, d_model=128, n_heads=nh, head_dim=32, with_mlp=False)
+    # for nh in attn_heads:
+    #     cfg = TrainConfig(**{**asdict(base), "name": f"MHSA_heads{nh}", "T": T})
+    #     model = MHSAOneBlock(vocab_size=tok.vocab_size, T=T, d_model=128, n_heads=nh, head_dim=32, use_ffn=False)
+    #     fpf = flops_attention(tok.vocab_size, T, d_model=128, n_heads=nh, head_dim=32, with_mlp=False)
 
-        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-        test_ll = -hist["test_loss"][-1]
-        attn_test_ll.append(test_ll)
-        attn_flops.append(hist["train_flops"][-1])
-        save_plot_loss(hist, os.path.join(out_dir, f"mhsa_loss_h{nh}.png"), f"MHSA loss (heads={nh})")
+    #     test_ll = -hist["test_loss"][-1]
+    #     attn_test_ll.append(test_ll)
+    #     attn_flops.append(hist["train_flops"][-1])
+    #     save_plot_loss(hist, os.path.join(out_dir, f"mhsa_loss_h{nh}.png"), f"MHSA loss (heads={nh})")
 
-        if test_ll > best_attn_ll:
-            best_attn_ll = test_ll
-            best_attn = model
-            best_attn_cfg = {"T": T, "d_model": 128, "heads": nh, "head_dim": 32, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+    #     if test_ll > best_attn_ll:
+    #         best_attn_ll = test_ll
+    #         best_attn = model
+    #         best_attn_cfg = {"T": T, "d_model": 128, "heads": nh, "head_dim": 32, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    save_plot_ll_vs_setting(attn_heads, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_heads.png"),
-                            "MHSA: test log-likelihood vs num heads", "num heads")
-    save_plot_ll_vs_flops(attn_flops, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_flops.png"),
-                          "MHSA: test log-likelihood vs training FLOPs")
-    print("Best MHSA hyperparams:", best_attn_cfg)
-    print("Best MHSA sample:\n", generate_chars(best_attn, tok, device, "HAMLET:", T=best_attn_cfg["T"], n_new=100))
+    # save_plot_ll_vs_setting(attn_heads, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_heads.png"),
+    #                         "MHSA: test log-likelihood vs num heads", "num heads")
+    # save_plot_ll_vs_flops(attn_flops, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_flops.png"),
+    #                       "MHSA: test log-likelihood vs training FLOPs")
+    # print("Best MHSA hyperparams:", best_attn_cfg)
+    # print("Best MHSA sample:\n", generate_chars(best_attn, tok, device, "HAMLET:", T=best_attn_cfg["T"], n_new=100))
 
-    # ============================================================
-    # Model family 4: Multi-layer Transformer
-    # Required: test LL vs 3+ settings
-    # We vary #layers; keep other dims fixed.
-    # ============================================================
-    tr_layers = [3,4,5]
-    tr_test_ll = []
-    tr_flops = []
-    best_tr = None
-    best_tr_ll = -1e9
-    best_tr_cfg = None
+    # # ============================================================
+    # # Model family 4: Multi-layer Transformer
+    # # Required: test LL vs 3+ settings
+    # # We vary #layers; keep other dims fixed.
+    # # ============================================================
+    # tr_layers = [3,4,5]
+    # tr_test_ll = []
+    # tr_flops = []
+    # best_tr = None
+    # best_tr_ll = -1e9
+    # best_tr_cfg = None
 
-    for nl in tr_layers:
-        cfg = TrainConfig(**{**asdict(base), "name": f"Transformer_L{nl}", "T": T})
-        model = TransformerLM(vocab_size=tok.vocab_size, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
-        fpf = flops_transformer(tok.vocab_size, T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
+    # for nl in tr_layers:
+    #     cfg = TrainConfig(**{**asdict(base), "name": f"Transformer_L{nl}", "T": T})
+    #     model = TransformerLM(vocab_size=tok.vocab_size, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
+    #     fpf = flops_transformer(tok.vocab_size, T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
 
-        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-        test_ll = -hist["test_loss"][-1]
-        tr_test_ll.append(test_ll)
-        tr_flops.append(hist["train_flops"][-1])
-        save_plot_loss(hist, os.path.join(out_dir, f"transformer_loss_L{nl}.png"), f"Transformer loss (layers={nl})")
+    #     test_ll = -hist["test_loss"][-1]
+    #     tr_test_ll.append(test_ll)
+    #     tr_flops.append(hist["train_flops"][-1])
+    #     save_plot_loss(hist, os.path.join(out_dir, f"transformer_loss_L{nl}.png"), f"Transformer loss (layers={nl})")
 
-        if test_ll > best_tr_ll:
-            best_tr_ll = test_ll
-            best_tr = model
-            best_tr_cfg = {"T": T, "d_model": 192, "heads": 3, "head_dim": 64, "layers": nl, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+    #     if test_ll > best_tr_ll:
+    #         best_tr_ll = test_ll
+    #         best_tr = model
+    #         best_tr_cfg = {"T": T, "d_model": 192, "heads": 3, "head_dim": 64, "layers": nl, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
     save_plot_ll_vs_setting(tr_layers, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_layers.png"),
                             "Transformer: test log-likelihood vs #layers", "#layers")
@@ -920,15 +926,15 @@ def main():
 
     # 2) Run word-level on PTB + WikiText-2 with best architecture
     # (Make sure you have those text files available locally.)
-    if os.path.exists(PTB_TRAIN) and os.path.exists(PTB_VAL) and os.path.exists(PTB_TEST):
-        run_word_level(os.path.join(OUT, "ptb"), "PTB", PTB_TRAIN, PTB_VAL, PTB_TEST, device, best_arch)
-    else:
-        print("\nPTB files not found. Skipping PTB run. Put them at:", PTB_TRAIN, PTB_VAL, PTB_TEST)
+    # if os.path.exists(PTB_TRAIN) and os.path.exists(PTB_VAL) and os.path.exists(PTB_TEST):
+    #     run_word_level(os.path.join(OUT, "ptb"), "PTB", PTB_TRAIN, PTB_VAL, PTB_TEST, device, best_arch)
+    # else:
+    #     print("\nPTB files not found. Skipping PTB run. Put them at:", PTB_TRAIN, PTB_VAL, PTB_TEST)
 
-    if os.path.exists(WIKI_TRAIN) and os.path.exists(WIKI_VAL) and os.path.exists(WIKI_TEST):
-        run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, best_arch)
-    else:
-        print("\nWikiText-2 files not found. Skipping WikiText-2 run. Put them at:", WIKI_TRAIN, WIKI_VAL, WIKI_TEST)
+    # if os.path.exists(WIKI_TRAIN) and os.path.exists(WIKI_VAL) and os.path.exists(WIKI_TEST):
+    #     run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, best_arch)
+    # else:
+    #     print("\nWikiText-2 files not found. Skipping WikiText-2 run. Put them at:", WIKI_TRAIN, WIKI_VAL, WIKI_TEST)
 
 
 if __name__ == "__main__":
