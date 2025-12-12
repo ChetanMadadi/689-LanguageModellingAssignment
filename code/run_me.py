@@ -608,6 +608,8 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     best_lin_hist = None
     best_lin_cfg = None
 
+    best_per_arch = {}
+
     for T in lin_Ts:
         cfg = TrainConfig(**{**asdict(base), "name": f"Linear_T{T}", "T": T})
         train_loader = make_loader(train_ids, T, cfg.batch_size, shuffle=True)
@@ -638,7 +640,11 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
                           "Linear: test log-likelihood vs training FLOPs")
     print("Best Linear hyperparams:", best_lin_cfg)
     print("Best Linear sample:\n", generate_chars(best_lin, tok, device, "HAMLET:", T=best_lin_cfg["T"], n_new=100))
-
+    best_per_arch["linear"] = {
+        "model": best_lin,
+        "ll": best_lin_ll,
+        "cfg": best_lin_cfg,
+    }
     # # ============================================================
     # # Model family 2: MLP (>=3 layers)
     # # Required: test LL vs 3+ hyperparam settings
@@ -680,6 +686,11 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     #                       "MLP: test log-likelihood vs training FLOPs")
     # print("Best MLP hyperparams:", best_mlp_cfg)
     # print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
+    # best_per_arch["mlp"] = {
+    #     "model": best_mlp,
+    #     "ll": best_mlp_ll,
+    #     "cfg": best_mlp_cfg,
+    # }
 
     # # ============================================================
     # # Model family 3: Multi-head self-attention (single block)
@@ -718,6 +729,11 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     #                       "MHSA: test log-likelihood vs training FLOPs")
     # print("Best MHSA hyperparams:", best_attn_cfg)
     # print("Best MHSA sample:\n", generate_chars(best_attn, tok, device, "HAMLET:", T=best_attn_cfg["T"], n_new=100))
+    # best_per_arch["mhsa"] = {
+    #     "model": best_attn,
+    #     "ll": best_attn_ll,
+    #     "cfg": best_attn_cfg,
+    # }
 
     # # ============================================================
     # # Model family 4: Multi-layer Transformer
@@ -755,46 +771,58 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     #                       "Transformer: test log-likelihood vs training FLOPs")
     # print("Best Transformer hyperparams:", best_tr_cfg)
     # print("Best Transformer sample:\n", generate_chars(best_tr, tok, device, "HAMLET:", T=best_tr_cfg["T"], n_new=100))
+    # best_per_arch["transformer"] = {
+    #     "model": best_tr,
+    #     "ll": best_tr_ll,
+    #     "cfg": best_tr_cfg,
+    # }
 
-    # Pick best overall (by test log-likelihood)
-    candidates = [
-        ("linear", best_lin_ll, best_lin, best_lin_cfg),
-        ("mlp", best_mlp_ll, best_mlp, best_mlp_cfg),
-        ("mhsa", best_attn_ll, best_attn, best_attn_cfg),
-        ("transformer", best_tr_ll, best_tr, best_tr_cfg),
-    ]
-    candidates.sort(key=lambda x: x[1], reverse=True)
-    best_name, best_ll, best_model, best_cfg = candidates[0]
-    print("\n=== BEST ON TINY SHAKESPEARE ===")
+    BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    print("\n=== BEST MODELS PER ARCHITECTURE ===")
+
+    for arch, info in best_per_arch.items():
+        model = info["model"]
+        cfg = info["cfg"]
+        ll = info["ll"]
+
+        print(f"{arch.upper():12s} | test LL = {ll:.4f} | cfg = {cfg}")
+
+        # ---- save sample ----
+        save_sample(
+            f"[BEST {arch.upper()} – Tiny Shakespeare]\n" +
+            generate_chars(
+                model,
+                tok,
+                device,
+                prompt="HAMLET:",
+                T=cfg["T"],
+                n_new=100
+            ),
+            os.path.join(BASE, "report_src", "samples.txt")
+        )
+
+        # ---- save checkpoint ----
+        ckpt = {
+            "model_name": arch,
+            "model_state": model.state_dict(),
+            "cfg": cfg,
+            "char_vocab": tok.stoi,
+        }
+        torch.save(
+            ckpt,
+            os.path.join(out_dir, f"best_{arch}_char_model.pt")
+        )
+
+    best_name = max(best_per_arch.items(), key=lambda x: x[1]["ll"])[0]
+    best_cfg = best_per_arch[best_name]["cfg"]
+    best_model = best_per_arch[best_name]["model"]
+    best_ll = best_per_arch[best_name]["ll"]
+
+    print("\n=== OVERALL BEST ON TINY SHAKESPEARE ===")
     print("model:", best_name)
     print("test log-likelihood (approx):", best_ll)
     print("cfg:", best_cfg)
-
-    # ---- SAVE BEST SAMPLE FOR REPORT ----
-    BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    save_sample(
-        f"[BEST {best_name.upper()} – Tiny Shakespeare]\n" +
-        generate_chars(
-            best_model,
-            tok,
-            device,
-            prompt="HAMLET:",
-            T=best_cfg["T"],
-            n_new=100
-        ),
-        os.path.join(BASE, "report_src", "samples.txt")
-    )
-
-
-    # Save best checkpoint for word-level stage
-    ckpt = {
-        "model_name": best_name,
-        "model_state": best_model.state_dict(),
-        "cfg": best_cfg,
-        "char_vocab": tok.stoi,
-    }
-    torch.save(ckpt, os.path.join(out_dir, "best_char_model.pt"))
 
     return best_name, best_cfg, best_model
 
