@@ -674,6 +674,12 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     best_attn_cfg = None
 
 
+    T = base.T
+    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+
+
     for nh in attn_heads:
         cfg = TrainConfig(**{**asdict(base), "name": f"MHSA_heads{nh}", "T": T})
         model = MHSAOneBlock(vocab_size=tok.vocab_size, T=T, d_model=128, n_heads=nh, head_dim=32, use_ffn=False)
