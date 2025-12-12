@@ -646,100 +646,100 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     #     "ll": best_lin_ll,
     #     "cfg": best_lin_cfg,
     # }
-    # # ============================================================
-    # # Model family 2: MLP (>=3 layers)
-    # # Required: test LL vs 3+ hyperparam settings
-    # # We vary hidden size; keep T fixed.
-    # # ============================================================
-    # mlp_hiddens = [256, 512, 768]
-    # mlp_test_ll = []
-    # mlp_flops = []
-    # best_mlp = None
-    # best_mlp_ll = -1e9
-    # best_mlp_cfg = None
+    # ============================================================
+    # Model family 2: MLP (>=3 layers)
+    # Required: test LL vs 3+ hyperparam settings
+    # We vary hidden size; keep T fixed.
+    # ============================================================
+    mlp_hiddens = [256, 512, 768]
+    mlp_test_ll = []
+    mlp_flops = []
+    best_mlp = None
+    best_mlp_ll = -1e9
+    best_mlp_cfg = None
 
-    # T = base.T
-    # train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
-    # val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
-    # test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    T = base.T
+    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
 
-    # for h in mlp_hiddens:
-    #     cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
-    #     model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
-    #     fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
+    for h in mlp_hiddens:
+        cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
+        model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
+        fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
 
-    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-    #     test_ll = -hist["test_loss"][-1]
-    #     mlp_test_ll.append(test_ll)
-    #     mlp_flops.append(hist["train_flops"][-1])
-    #     save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
+        test_ll = -hist["test_loss"][-1]
+        mlp_test_ll.append(test_ll)
+        mlp_flops.append(hist["train_flops"][-1])
+        save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
 
-    #     if test_ll > best_mlp_ll:
-    #         best_mlp_ll = test_ll
-    #         best_mlp = model
-    #         best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+        if test_ll > best_mlp_ll:
+            best_mlp_ll = test_ll
+            best_mlp = model
+            best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    # save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
-    #                         "MLP: test log-likelihood vs hidden size", "hidden size")
-    # save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
-    #                       "MLP: test log-likelihood vs training FLOPs")
-    # print("Best MLP hyperparams:", best_mlp_cfg)
-    # print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
-    # best_per_arch["mlp"] = {
-    #     "model": best_mlp,
-    #     "ll": best_mlp_ll,
-    #     "cfg": best_mlp_cfg,
-    # }
+    save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
+                            "MLP: test log-likelihood vs hidden size", "hidden size")
+    save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
+                          "MLP: test log-likelihood vs training FLOPs")
+    print("Best MLP hyperparams:", best_mlp_cfg)
+    print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
+    best_per_arch["mlp"] = {
+        "model": best_mlp,
+        "ll": best_mlp_ll,
+        "cfg": best_mlp_cfg,
+    }
 
     # ============================================================
     # Model family 3: Multi-head self-attention (single block)
     # Required: test LL vs 3+ settings
     # We vary number of heads; keep head_dim fixed.
     # ============================================================
-    T = base.T
-    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
-    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
-    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    # T = base.T
+    # train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    # val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    # test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
 
-    attn_heads = [1, 2, 4]
-    attn_test_ll = []
-    attn_flops = []
-    best_attn = None
-    best_attn_ll = -1e9
-    best_attn_cfg = None
+    # attn_heads = [1, 2, 4]
+    # attn_test_ll = []
+    # attn_flops = []
+    # best_attn = None
+    # best_attn_ll = -1e9
+    # best_attn_cfg = None
 
 
-    for nh in attn_heads:
-        cfg = TrainConfig(**{**asdict(base), "name": f"MHSA_heads{nh}", "T": T})
-        model = MHSAOneBlock(vocab_size=tok.vocab_size, T=T, d_model=128, n_heads=nh, head_dim=32, use_ffn=False)
-        fpf = flops_attention(tok.vocab_size, T, d_model=128, n_heads=nh, head_dim=32, with_mlp=False)
+    # for nh in attn_heads:
+    #     cfg = TrainConfig(**{**asdict(base), "name": f"MHSA_heads{nh}", "T": T})
+    #     model = MHSAOneBlock(vocab_size=tok.vocab_size, T=T, d_model=128, n_heads=nh, head_dim=32, use_ffn=False)
+    #     fpf = flops_attention(tok.vocab_size, T, d_model=128, n_heads=nh, head_dim=32, with_mlp=False)
 
-        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-        test_ll = -hist["test_loss"][-1]
-        attn_test_ll.append(test_ll)
-        attn_flops.append(hist["train_flops"][-1])
-        save_plot_loss(hist, os.path.join(out_dir, f"mhsa_loss_h{nh}.png"), f"MHSA loss (heads={nh})")
+    #     test_ll = -hist["test_loss"][-1]
+    #     attn_test_ll.append(test_ll)
+    #     attn_flops.append(hist["train_flops"][-1])
+    #     save_plot_loss(hist, os.path.join(out_dir, f"mhsa_loss_h{nh}.png"), f"MHSA loss (heads={nh})")
 
-        if test_ll > best_attn_ll:
-            best_attn_ll = test_ll
-            best_attn = model
-            best_attn_cfg = {"T": T, "d_model": 128, "heads": nh, "head_dim": 32, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+    #     if test_ll > best_attn_ll:
+    #         best_attn_ll = test_ll
+    #         best_attn = model
+    #         best_attn_cfg = {"T": T, "d_model": 128, "heads": nh, "head_dim": 32, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    save_plot_ll_vs_setting(attn_heads, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_heads.png"),
-                            "MHSA: test log-likelihood vs num heads", "num heads")
-    save_plot_ll_vs_flops(attn_flops, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_flops.png"),
-                          "MHSA: test log-likelihood vs training FLOPs")
-    print("Best MHSA hyperparams:", best_attn_cfg)
-    print("Best MHSA sample:\n", generate_chars(best_attn, tok, device, "HAMLET:", T=best_attn_cfg["T"], n_new=100))
-    best_per_arch["mhsa"] = {
-        "model": best_attn,
-        "ll": best_attn_ll,
-        "cfg": best_attn_cfg,
-    }
+    # save_plot_ll_vs_setting(attn_heads, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_heads.png"),
+    #                         "MHSA: test log-likelihood vs num heads", "num heads")
+    # save_plot_ll_vs_flops(attn_flops, attn_test_ll, os.path.join(out_dir, "mhsa_ll_vs_flops.png"),
+    #                       "MHSA: test log-likelihood vs training FLOPs")
+    # print("Best MHSA hyperparams:", best_attn_cfg)
+    # print("Best MHSA sample:\n", generate_chars(best_attn, tok, device, "HAMLET:", T=best_attn_cfg["T"], n_new=100))
+    # best_per_arch["mhsa"] = {
+    #     "model": best_attn,
+    #     "ll": best_attn_ll,
+    #     "cfg": best_attn_cfg,
+    # }
 
     # # ============================================================
     # # Model family 4: Multi-layer Transformer
