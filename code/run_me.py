@@ -697,6 +697,11 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # Required: test LL vs 3+ settings
     # We vary number of heads; keep head_dim fixed.
     # ============================================================
+    T = base.T
+    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    
     attn_heads = [1, 2, 4]
     attn_test_ll = []
     attn_flops = []
