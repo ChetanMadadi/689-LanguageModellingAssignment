@@ -749,12 +749,12 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     #         best_tr = model
     #         best_tr_cfg = {"T": T, "d_model": 192, "heads": 3, "head_dim": 64, "layers": nl, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    save_plot_ll_vs_setting(tr_layers, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_layers.png"),
-                            "Transformer: test log-likelihood vs #layers", "#layers")
-    save_plot_ll_vs_flops(tr_flops, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_flops.png"),
-                          "Transformer: test log-likelihood vs training FLOPs")
-    print("Best Transformer hyperparams:", best_tr_cfg)
-    print("Best Transformer sample:\n", generate_chars(best_tr, tok, device, "HAMLET:", T=best_tr_cfg["T"], n_new=100))
+    # save_plot_ll_vs_setting(tr_layers, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_layers.png"),
+    #                         "Transformer: test log-likelihood vs #layers", "#layers")
+    # save_plot_ll_vs_flops(tr_flops, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_flops.png"),
+    #                       "Transformer: test log-likelihood vs training FLOPs")
+    # print("Best Transformer hyperparams:", best_tr_cfg)
+    # print("Best Transformer sample:\n", generate_chars(best_tr, tok, device, "HAMLET:", T=best_tr_cfg["T"], n_new=100))
 
     # Pick best overall (by test log-likelihood)
     candidates = [
