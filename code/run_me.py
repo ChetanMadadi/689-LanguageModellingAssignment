@@ -596,101 +596,101 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
         sample_every=4,
     )
 
-    # ============================================================
-    # Model family 1: Linear predictor
-    # Required: test LL vs 3+ context lengths (we vary T)
-    # ============================================================
-    lin_Ts = [64, 128]
-    lin_test_ll = []
-    lin_flops = []
-    best_lin = None
-    best_lin_ll = -1e9
-    best_lin_hist = None
-    best_lin_cfg = None
-
-    best_per_arch = {}
-
-    for T in lin_Ts:
-        cfg = TrainConfig(**{**asdict(base), "name": f"Linear_T{T}", "T": T})
-        train_loader = make_loader(train_ids, T, cfg.batch_size, shuffle=True)
-        val_loader = make_loader(val_ids, T, cfg.batch_size, shuffle=False)
-        test_loader = make_loader(test_ids, T, cfg.batch_size, shuffle=False)
-
-        model = LinearPredictor(vocab_size=tok.vocab_size, d_model=128)
-        fpf = flops_linear(tok.vocab_size, T, d_model=128)
-
-        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, prompt="HAMLET:", T=T, n_new=100)
-
-        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
-        test_ll = -hist["test_loss"][-1]
-        lin_test_ll.append(test_ll)
-        lin_flops.append(hist["train_flops"][-1])
-
-        save_plot_loss(hist, os.path.join(out_dir, f"linear_loss_T{T}.png"), f"Linear loss (T={T})")
-
-        if test_ll > best_lin_ll:
-            best_lin_ll = test_ll
-            best_lin = model
-            best_lin_hist = hist
-            best_lin_cfg = {"T": T, "d_model": 128, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
-
-    save_plot_ll_vs_setting(lin_Ts, lin_test_ll, os.path.join(out_dir, "linear_ll_vs_T.png"),
-                            "Linear: test log-likelihood vs context length", "context length T")
-    save_plot_ll_vs_flops(lin_flops, lin_test_ll, os.path.join(out_dir, "linear_ll_vs_flops.png"),
-                          "Linear: test log-likelihood vs training FLOPs")
-    print("Best Linear hyperparams:", best_lin_cfg)
-    print("Best Linear sample:\n", generate_chars(best_lin, tok, device, "HAMLET:", T=best_lin_cfg["T"], n_new=100))
-    best_per_arch["linear"] = {
-        "model": best_lin,
-        "ll": best_lin_ll,
-        "cfg": best_lin_cfg,
-    }
     # # ============================================================
-    # # Model family 2: MLP (>=3 layers)
-    # # Required: test LL vs 3+ hyperparam settings
-    # # We vary hidden size; keep T fixed.
+    # # Model family 1: Linear predictor
+    # # Required: test LL vs 3+ context lengths (we vary T)
     # # ============================================================
-    # mlp_hiddens = [256, 512, 768]
-    # mlp_test_ll = []
-    # mlp_flops = []
-    # best_mlp = None
-    # best_mlp_ll = -1e9
-    # best_mlp_cfg = None
+    # lin_Ts = [64, 128]
+    # lin_test_ll = []
+    # lin_flops = []
+    # best_lin = None
+    # best_lin_ll = -1e9
+    # best_lin_hist = None
+    # best_lin_cfg = None
 
-    # T = base.T
-    # train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
-    # val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
-    # test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    # best_per_arch = {}
 
-    # for h in mlp_hiddens:
-    #     cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
-    #     model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
-    #     fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
+    # for T in lin_Ts:
+    #     cfg = TrainConfig(**{**asdict(base), "name": f"Linear_T{T}", "T": T})
+    #     train_loader = make_loader(train_ids, T, cfg.batch_size, shuffle=True)
+    #     val_loader = make_loader(val_ids, T, cfg.batch_size, shuffle=False)
+    #     test_loader = make_loader(test_ids, T, cfg.batch_size, shuffle=False)
 
-    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+    #     model = LinearPredictor(vocab_size=tok.vocab_size, d_model=128)
+    #     fpf = flops_linear(tok.vocab_size, T, d_model=128)
+
+    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, prompt="HAMLET:", T=T, n_new=100)
+
     #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
-
     #     test_ll = -hist["test_loss"][-1]
-    #     mlp_test_ll.append(test_ll)
-    #     mlp_flops.append(hist["train_flops"][-1])
-    #     save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
+    #     lin_test_ll.append(test_ll)
+    #     lin_flops.append(hist["train_flops"][-1])
 
-    #     if test_ll > best_mlp_ll:
-    #         best_mlp_ll = test_ll
-    #         best_mlp = model
-    #         best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+    #     save_plot_loss(hist, os.path.join(out_dir, f"linear_loss_T{T}.png"), f"Linear loss (T={T})")
 
-    # save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
-    #                         "MLP: test log-likelihood vs hidden size", "hidden size")
-    # save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
-    #                       "MLP: test log-likelihood vs training FLOPs")
-    # print("Best MLP hyperparams:", best_mlp_cfg)
-    # print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
-    # best_per_arch["mlp"] = {
-    #     "model": best_mlp,
-    #     "ll": best_mlp_ll,
-    #     "cfg": best_mlp_cfg,
+    #     if test_ll > best_lin_ll:
+    #         best_lin_ll = test_ll
+    #         best_lin = model
+    #         best_lin_hist = hist
+    #         best_lin_cfg = {"T": T, "d_model": 128, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+
+    # save_plot_ll_vs_setting(lin_Ts, lin_test_ll, os.path.join(out_dir, "linear_ll_vs_T.png"),
+    #                         "Linear: test log-likelihood vs context length", "context length T")
+    # save_plot_ll_vs_flops(lin_flops, lin_test_ll, os.path.join(out_dir, "linear_ll_vs_flops.png"),
+    #                       "Linear: test log-likelihood vs training FLOPs")
+    # print("Best Linear hyperparams:", best_lin_cfg)
+    # print("Best Linear sample:\n", generate_chars(best_lin, tok, device, "HAMLET:", T=best_lin_cfg["T"], n_new=100))
+    # best_per_arch["linear"] = {
+    #     "model": best_lin,
+    #     "ll": best_lin_ll,
+    #     "cfg": best_lin_cfg,
     # }
+    # ============================================================
+    # Model family 2: MLP (>=3 layers)
+    # Required: test LL vs 3+ hyperparam settings
+    # We vary hidden size; keep T fixed.
+    # ============================================================
+    mlp_hiddens = [256, 512, 768]
+    mlp_test_ll = []
+    mlp_flops = []
+    best_mlp = None
+    best_mlp_ll = -1e9
+    best_mlp_cfg = None
+
+    T = base.T
+    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+
+    for h in mlp_hiddens:
+        cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
+        model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
+        fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
+
+        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+
+        test_ll = -hist["test_loss"][-1]
+        mlp_test_ll.append(test_ll)
+        mlp_flops.append(hist["train_flops"][-1])
+        save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
+
+        if test_ll > best_mlp_ll:
+            best_mlp_ll = test_ll
+            best_mlp = model
+            best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+
+    save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
+                            "MLP: test log-likelihood vs hidden size", "hidden size")
+    save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
+                          "MLP: test log-likelihood vs training FLOPs")
+    print("Best MLP hyperparams:", best_mlp_cfg)
+    print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
+    best_per_arch["mlp"] = {
+        "model": best_mlp,
+        "ll": best_mlp_ll,
+        "cfg": best_mlp_cfg,
+    }
 
     # # ============================================================
     # # Model family 3: Multi-head self-attention (single block)
