@@ -698,7 +698,7 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # Required: test LL vs 3+ settings
     # We vary #layers; keep other dims fixed.
     # ============================================================
-    tr_layers = [3]
+    tr_layers = [3,4,5]
     tr_test_ll = []
     tr_flops = []
     best_tr = None
