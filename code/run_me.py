@@ -377,9 +377,8 @@ class TrainConfig:
 
 
 def loss_fn(logits, targets):
-    # logits: (B,T,V), targets: (B,T)
-    B, T, V = logits.shape
-    return F.cross_entropy(logits.reshape(B * T, V), targets.reshape(B * T))
+    # Only supervise next-token prediction
+    return F.cross_entropy(logits[:, -1, :], targets[:, -1])
 
 
 @torch.no_grad()
@@ -394,26 +393,47 @@ def evaluate(model, loader, device) -> float:
         n_batches += 1
     return total_loss / max(1, n_batches)
 
-
 @torch.no_grad()
-def generate_chars(model, tokenizer: CharTokenizer, device: str, prompt: str, T: int, n_new: int = 100, temperature: float = 1.0) -> str:
+def generate_chars(
+    model,
+    tokenizer: CharTokenizer,
+    device: str,
+    prompt: str,
+    T: int,
+    n_new: int = 100,
+    temperature: float = 1.0,
+):
     model.eval()
+
     ids = tokenizer.encode(prompt)
-    x = torch.tensor(ids, dtype=torch.long, device=device)[None, :]
+    x = torch.tensor(ids, dtype=torch.long, device=device)[None, :]  # (1, L)
+
+    pad_id = tokenizer.stoi.get(" ", 0)  # pad with space if available
+
     for _ in range(n_new):
-        # Always feed exactly T tokens for models that require fixed T (e.g., MLP)
+        # --- ALWAYS feed exactly T tokens ---
         if x.size(1) >= T:
             x_cond = x[:, -T:]
         else:
-            pad_id = 0  # safe for CharTokenizer since 0 is a valid char id
-            pad = torch.full((1, T - x.size(1)), pad_id, dtype=torch.long, device=device)
+            pad = torch.full(
+                (1, T - x.size(1)),
+                pad_id,
+                dtype=torch.long,
+                device=device,
+            )
             x_cond = torch.cat([pad, x], dim=1)
-        logits = model(x_cond)  # (1,t,V)
-        last = logits[:, -1, :] / max(1e-8, temperature)
-        probs = F.softmax(last, dim=-1)
-        nxt = torch.multinomial(probs, num_samples=1)
-        x = torch.cat([x, nxt], dim=1)
+
+        logits = model(x_cond)           # (1, T, V)
+        logits = logits[:, -1, :]        # last position
+        logits = logits / max(temperature, 1e-8)
+
+        probs = torch.softmax(logits, dim=-1)
+        next_id = torch.multinomial(probs, num_samples=1)
+
+        x = torch.cat([x, next_id], dim=1)
+
     return tokenizer.decode(x[0].tolist())
+
 
 
 @torch.no_grad()
