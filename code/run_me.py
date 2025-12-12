@@ -651,47 +651,47 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # Required: test LL vs 3+ hyperparam settings
     # We vary hidden size; keep T fixed.
     # ============================================================
-    mlp_hiddens = [256, 512, 768]
-    mlp_test_ll = []
-    mlp_flops = []
-    best_mlp = None
-    best_mlp_ll = -1e9
-    best_mlp_cfg = None
+    # mlp_hiddens = [256, 512, 768]
+    # mlp_test_ll = []
+    # mlp_flops = []
+    # best_mlp = None
+    # best_mlp_ll = -1e9
+    # best_mlp_cfg = None
 
-    T = base.T
-    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
-    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
-    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    # T = base.T
+    # train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    # val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    # test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
 
-    for h in mlp_hiddens:
-        cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
-        model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
-        fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
+    # for h in mlp_hiddens:
+    #     cfg = TrainConfig(**{**asdict(base), "name": f"MLP_hidden{h}", "T": T})
+    #     model = MLP3Plus(vocab_size=tok.vocab_size, T=T, d_model=96, hidden=h, n_layers=3)
+    #     fpf = flops_mlp(tok.vocab_size, T, d_model=96, hidden=h, layers=3)
 
-        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-        test_ll = -hist["test_loss"][-1]
-        mlp_test_ll.append(test_ll)
-        mlp_flops.append(hist["train_flops"][-1])
-        save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
+    #     test_ll = -hist["test_loss"][-1]
+    #     mlp_test_ll.append(test_ll)
+    #     mlp_flops.append(hist["train_flops"][-1])
+    #     save_plot_loss(hist, os.path.join(out_dir, f"mlp_loss_h{h}.png"), f"MLP loss (hidden={h})")
 
-        if test_ll > best_mlp_ll:
-            best_mlp_ll = test_ll
-            best_mlp = model
-            best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+    #     if test_ll > best_mlp_ll:
+    #         best_mlp_ll = test_ll
+    #         best_mlp = model
+    #         best_mlp_cfg = {"T": T, "d_model": 96, "hidden": h, "layers": 3, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
-                            "MLP: test log-likelihood vs hidden size", "hidden size")
-    save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
-                          "MLP: test log-likelihood vs training FLOPs")
-    print("Best MLP hyperparams:", best_mlp_cfg)
-    print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
-    best_per_arch["mlp"] = {
-        "model": best_mlp,
-        "ll": best_mlp_ll,
-        "cfg": best_mlp_cfg,
-    }
+    # save_plot_ll_vs_setting(mlp_hiddens, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_hidden.png"),
+    #                         "MLP: test log-likelihood vs hidden size", "hidden size")
+    # save_plot_ll_vs_flops(mlp_flops, mlp_test_ll, os.path.join(out_dir, "mlp_ll_vs_flops.png"),
+    #                       "MLP: test log-likelihood vs training FLOPs")
+    # print("Best MLP hyperparams:", best_mlp_cfg)
+    # print("Best MLP sample:\n", generate_chars(best_mlp, tok, device, "HAMLET:", T=best_mlp_cfg["T"], n_new=100))
+    # best_per_arch["mlp"] = {
+    #     "model": best_mlp,
+    #     "ll": best_mlp_ll,
+    #     "cfg": best_mlp_cfg,
+    # }
 
     # ============================================================
     # Model family 3: Multi-head self-attention (single block)
@@ -746,47 +746,47 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # # Required: test LL vs 3+ settings
     # # We vary #layers; keep other dims fixed.
     # # ============================================================
-    # T = base.T
-    # train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
-    # val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
-    # test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
+    T = base.T
+    train_loader = make_loader(train_ids, T, base.batch_size, shuffle=True)
+    val_loader = make_loader(val_ids, T, base.batch_size, shuffle=False)
+    test_loader = make_loader(test_ids, T, base.batch_size, shuffle=False)
     
-    # tr_layers = [3,4,5]
-    # tr_test_ll = []
-    # tr_flops = []
-    # best_tr = None
-    # best_tr_ll = -1e9
-    # best_tr_cfg = None
+    tr_layers = [3,4,5]
+    tr_test_ll = []
+    tr_flops = []
+    best_tr = None
+    best_tr_ll = -1e9
+    best_tr_cfg = None
 
-    # for nl in tr_layers:
-    #     cfg = TrainConfig(**{**asdict(base), "name": f"Transformer_L{nl}", "T": T})
-    #     model = TransformerLM(vocab_size=tok.vocab_size, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
-    #     fpf = flops_transformer(tok.vocab_size, T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
+    for nl in tr_layers:
+        cfg = TrainConfig(**{**asdict(base), "name": f"Transformer_L{nl}", "T": T})
+        model = TransformerLM(vocab_size=tok.vocab_size, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
+        fpf = flops_transformer(tok.vocab_size, T, d_model=192, n_heads=3, head_dim=64, n_layers=nl)
 
-    #     sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
-    #     hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
+        sample_fn = lambda m: "\nSAMPLE:\n" + generate_chars(m, tok, device, "HAMLET:", T=T, n_new=100)
+        hist = train_one_run(model, cfg, train_loader, val_loader, test_loader, device, fpf, sample_fn=sample_fn)
 
-    #     test_ll = -hist["test_loss"][-1]
-    #     tr_test_ll.append(test_ll)
-    #     tr_flops.append(hist["train_flops"][-1])
-    #     save_plot_loss(hist, os.path.join(out_dir, f"transformer_loss_L{nl}.png"), f"Transformer loss (layers={nl})")
+        test_ll = -hist["test_loss"][-1]
+        tr_test_ll.append(test_ll)
+        tr_flops.append(hist["train_flops"][-1])
+        save_plot_loss(hist, os.path.join(out_dir, f"transformer_loss_L{nl}.png"), f"Transformer loss (layers={nl})")
 
-    #     if test_ll > best_tr_ll:
-    #         best_tr_ll = test_ll
-    #         best_tr = model
-    #         best_tr_cfg = {"T": T, "d_model": 192, "heads": 3, "head_dim": 64, "layers": nl, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
+        if test_ll > best_tr_ll:
+            best_tr_ll = test_ll
+            best_tr = model
+            best_tr_cfg = {"T": T, "d_model": 192, "heads": 3, "head_dim": 64, "layers": nl, "lr": cfg.lr, "batch": cfg.batch_size, "epochs": cfg.epochs}
 
-    # save_plot_ll_vs_setting(tr_layers, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_layers.png"),
-    #                         "Transformer: test log-likelihood vs #layers", "#layers")
-    # save_plot_ll_vs_flops(tr_flops, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_flops.png"),
-    #                       "Transformer: test log-likelihood vs training FLOPs")
-    # print("Best Transformer hyperparams:", best_tr_cfg)
-    # print("Best Transformer sample:\n", generate_chars(best_tr, tok, device, "HAMLET:", T=best_tr_cfg["T"], n_new=100))
-    # best_per_arch["transformer"] = {
-    #     "model": best_tr,
-    #     "ll": best_tr_ll,
-    #     "cfg": best_tr_cfg,
-    # }
+    save_plot_ll_vs_setting(tr_layers, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_layers.png"),
+                            "Transformer: test log-likelihood vs #layers", "#layers")
+    save_plot_ll_vs_flops(tr_flops, tr_test_ll, os.path.join(out_dir, "transformer_ll_vs_flops.png"),
+                          "Transformer: test log-likelihood vs training FLOPs")
+    print("Best Transformer hyperparams:", best_tr_cfg)
+    print("Best Transformer sample:\n", generate_chars(best_tr, tok, device, "HAMLET:", T=best_tr_cfg["T"], n_new=100))
+    best_per_arch["transformer"] = {
+        "model": best_tr,
+        "ll": best_tr_ll,
+        "cfg": best_tr_cfg,
+    }
 
     BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
