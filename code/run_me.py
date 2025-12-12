@@ -600,7 +600,7 @@ def run_tiny_shakespeare(ts_path: str, out_dir: str, device: str):
     # Model family 1: Linear predictor
     # Required: test LL vs 3+ context lengths (we vary T)
     # ============================================================
-    lin_Ts = [64, 128, 256]
+    lin_Ts = [64, 128]
     lin_test_ll = []
     lin_flops = []
     best_lin = None
