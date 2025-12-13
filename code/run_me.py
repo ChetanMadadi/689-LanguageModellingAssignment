@@ -992,7 +992,7 @@ def main():
         print("\nPTB files not found. Skipping PTB run. Put them at:", PTB_TRAIN, PTB_VAL, PTB_TEST)
 
     if os.path.exists(WIKI_TRAIN) and os.path.exists(WIKI_VAL) and os.path.exists(WIKI_TEST):
-        run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, best_arch)
+        run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, "transformer")
     else:
         print("\nWikiText-2 files not found. Skipping WikiText-2 run. Put them at:", WIKI_TRAIN, WIKI_VAL, WIKI_TEST)
 
