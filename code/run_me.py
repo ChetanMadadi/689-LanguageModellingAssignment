@@ -909,8 +909,8 @@ def run_word_level(
         fpf = flops_attention(vocab, T, d_model=256, n_heads=4, head_dim=64, with_mlp=True)
     else:
         # transformer
-        model = TransformerLM(vocab_size=vocab, T=T, d_model=256, n_heads=4, head_dim=64, n_layers=4)
-        fpf = flops_transformer(vocab, T, d_model=256, n_heads=4, head_dim=64, n_layers=4)
+        model = TransformerLM(vocab_size=vocab, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=4)
+        fpf = flops_transformer(vocab, T, d_model=192, n_heads=3, head_dim=64, n_layers=4)
 
     def sample_prompt():
         if dataset_name.lower().startswith("ptb"):
@@ -981,19 +981,20 @@ def main():
     os.makedirs(OUT, exist_ok=True)
 
     # 1) Run Tiny Shakespeare experiments
-    best_arch, best_cfg, _ = run_tiny_shakespeare(TINY_SHAKESPEARE_PATH, os.path.join(OUT, "tinyshakespeare"), device)
+    # best_arch, best_cfg, _ = run_tiny_shakespeare(TINY_SHAKESPEARE_PATH, os.path.join(OUT, "tinyshakespeare"), device)
 
+    # model = TransformerLM(vocab_size=tok.vocab_size, T=T, d_model=192, n_heads=3, head_dim=64, n_layers=4)
     # 2) Run word-level on PTB + WikiText-2 with best architecture
     # (Make sure you have those text files available locally.)
-    # if os.path.exists(PTB_TRAIN) and os.path.exists(PTB_VAL) and os.path.exists(PTB_TEST):
-    #     run_word_level(os.path.join(OUT, "ptb"), "PTB", PTB_TRAIN, PTB_VAL, PTB_TEST, device, best_arch)
-    # else:
-    #     print("\nPTB files not found. Skipping PTB run. Put them at:", PTB_TRAIN, PTB_VAL, PTB_TEST)
+    if os.path.exists(PTB_TRAIN) and os.path.exists(PTB_VAL) and os.path.exists(PTB_TEST):
+        run_word_level(os.path.join(OUT, "ptb"), "PTB", PTB_TRAIN, PTB_VAL, PTB_TEST, device, "transformer")
+    else:
+        print("\nPTB files not found. Skipping PTB run. Put them at:", PTB_TRAIN, PTB_VAL, PTB_TEST)
 
-    # if os.path.exists(WIKI_TRAIN) and os.path.exists(WIKI_VAL) and os.path.exists(WIKI_TEST):
-    #     run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, best_arch)
-    # else:
-    #     print("\nWikiText-2 files not found. Skipping WikiText-2 run. Put them at:", WIKI_TRAIN, WIKI_VAL, WIKI_TEST)
+    if os.path.exists(WIKI_TRAIN) and os.path.exists(WIKI_VAL) and os.path.exists(WIKI_TEST):
+        run_word_level(os.path.join(OUT, "wikitext2"), "WikiText-2", WIKI_TRAIN, WIKI_VAL, WIKI_TEST, device, best_arch)
+    else:
+        print("\nWikiText-2 files not found. Skipping WikiText-2 run. Put them at:", WIKI_TRAIN, WIKI_VAL, WIKI_TEST)
 
 
 if __name__ == "__main__":
